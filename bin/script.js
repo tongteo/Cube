@@ -276,6 +276,30 @@ function pausePlayback() {
     clearInterval(playInterval);
 }
 
+function extractMovesFromSolution(solution) {
+    const lines = solution.split('\n');
+    const allMoves = [];
+    const validMoveRegex = /^[RLUDFBMESrludfbxyz](2\'|2|')?$/;
+
+    for (const line of lines) {
+        const parts = line.replace(/\(|\)/g, '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) continue;
+
+        let isMoveLine = true;
+        for (const part of parts) {
+            if (!validMoveRegex.test(part)) {
+                isMoveLine = false;
+                break;
+            }
+        }
+
+        if (isMoveLine) {
+            allMoves.push(...parts);
+        }
+    }
+    return allMoves;
+}
+
 // --- Event Listeners ---
 scrambleButton.addEventListener('click', () => {
     if (isRotating) return;
@@ -301,10 +325,7 @@ solveButton.addEventListener('click', () => {
             const solution = Module.ccall('solve_from_state_wasm', 'string', ['string'], [stateString]);
             solutionOutput.textContent = solution;
 
-            const cleanedSolution = solution.replace(/\((.*?)\)/g, ' $1 ');
-            const parts = cleanedSolution.split(/\s+/);
-            const validMoveRegex = /^[RLUDFBMESrludfbxyz](2'|2|')?$/;
-            solutionMoves = parts.filter(part => validMoveRegex.test(part));
+            solutionMoves = extractMovesFromSolution(solution);
 
             currentMoveIndex = 0;
             isPlaying = false;
