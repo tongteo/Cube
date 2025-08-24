@@ -6,11 +6,13 @@ const solutionOutput = document.getElementById('solution-output');
 const nextMoveButton = document.getElementById('next-move-button');
 const prevMoveButton = document.getElementById('prev-move-button');
 const playPauseButton = document.getElementById('play-pause-button');
+const speedSlider = document.getElementById('speed-slider');
+const totalTimeSelect = document.getElementById('total-time-select');
 
 let scene, camera, renderer, controls, cubeGroup;
 const CUBIE_SIZE = 1;
 const CUBIE_SPACING = 0.05;
-const ROTATION_SPEED = 0.15;
+let rotationSpeed = 0.15;
 
 // State
 let isRotating = false;
@@ -53,6 +55,10 @@ function init() {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     createRubiksCube();
     animate();
+
+    speedSlider.addEventListener('input', (event) => {
+        rotationSpeed = parseFloat(event.target.value) / 100;
+    });
 }
 
 function createRubiksCube() {
@@ -132,7 +138,9 @@ function addToMoveQueue(moves) {
 function processMoveQueue() {
     if (moveQueue.length === 0) {
         isRotating = false;
-        updatePlaybackButtons();
+        if (!isPlaying) {
+            updatePlaybackButtons();
+        }
         if (isPlaying && currentMoveIndex === solutionMoves.length) {
             pausePlayback();
         }
@@ -169,7 +177,7 @@ function rotateFace(face, angle, callback) {
 
     let currentAngle = 0;
     function animateRotation() {
-        const angleToRotate = Math.sign(angle) * ROTATION_SPEED;
+        const angleToRotate = Math.sign(angle) * rotationSpeed;
         pivot.rotateOnWorldAxis(axis, angleToRotate);
         currentAngle += angleToRotate;
 
@@ -227,9 +235,9 @@ function getCubeStateString() {
 }
 
 function updatePlaybackButtons() {
-    prevMoveButton.disabled = isRotating || currentMoveIndex === 0;
-    nextMoveButton.disabled = isRotating || currentMoveIndex === solutionMoves.length;
-    playPauseButton.disabled = isRotating || solutionMoves.length === 0;
+    prevMoveButton.disabled = isRotating || isPlaying || currentMoveIndex === 0;
+    nextMoveButton.disabled = isRotating || isPlaying || currentMoveIndex === solutionMoves.length;
+    playPauseButton.disabled = solutionMoves.length === 0;
 }
 
 function playNextMove() {
@@ -237,7 +245,6 @@ function playNextMove() {
     const move = solutionMoves[currentMoveIndex];
     addToMoveQueue(parseMoves(move));
     currentMoveIndex++;
-    updatePlaybackButtons();
 }
 
 function playPrevMove() {
@@ -253,12 +260,17 @@ function playPrevMove() {
         inverseMove = move + "'";
     }
     addToMoveQueue(parseMoves(inverseMove));
-    updatePlaybackButtons();
 }
 
 function startPlayback() {
     isPlaying = true;
     playPauseButton.textContent = 'Pause';
+    updatePlaybackButtons();
+
+    const totalTime = parseInt(totalTimeSelect.value, 10);
+    const numMoves = solutionMoves.length - currentMoveIndex;
+    const delay = numMoves > 0 ? totalTime / numMoves : 0;
+
     playInterval = setInterval(() => {
         if (!isRotating) {
             if (currentMoveIndex < solutionMoves.length) {
@@ -267,19 +279,20 @@ function startPlayback() {
                 pausePlayback();
             }
         }
-    }, 800); // Adjust delay as needed
+    }, delay);
 }
 
 function pausePlayback() {
     isPlaying = false;
     playPauseButton.textContent = 'Play';
     clearInterval(playInterval);
+    updatePlaybackButtons();
 }
 
 function extractMovesFromSolution(solution) {
     const lines = solution.split('\n');
     const allMoves = [];
-    const validMoveRegex = /^[RLUDFBMESrludfbxyz](2\'|2|')?$/;
+    const validMoveRegex = /^[RLUDFBMESrludfbxyz](2'|2|')?$/;
 
     for (const line of lines) {
         const parts = line.replace(/\(|\)/g, '').trim().split(/\s+/).filter(Boolean);
@@ -334,8 +347,15 @@ solveButton.addEventListener('click', () => {
     }, 50);
 });
 
-nextMoveButton.addEventListener('click', playNextMove);
-prevMoveButton.addEventListener('click', playPrevMove);
+nextMoveButton.addEventListener('click', () => {
+    if (isPlaying) return;
+    playNextMove();
+});
+
+prevMoveButton.addEventListener('click', () => {
+    if (isPlaying) return;
+    playPrevMove();
+});
 
 playPauseButton.addEventListener('click', () => {
     if (isPlaying) {

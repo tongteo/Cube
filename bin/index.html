@@ -22,6 +22,23 @@
             <button id="play-pause-button" disabled>Play</button>
             <button id="next-move-button" disabled>Next</button>
         </div>
+        <div class="controls-speed">
+            <div>
+                <label for="speed-slider">Rotation Speed:</label>
+                <input type="range" id="speed-slider" min="1" max="30" value="15">
+            </div>
+            <div>
+                <label for="total-time-select">Total Time:</label>
+                <select id="total-time-select">
+                    <option value="500">0.5s</option>
+                    <option value="2500">2.5s</option>
+                    <option value="4000">4s</option>
+                    <option value="10000" selected>10s</option>
+                    <option value="20000">20s</option>
+                    <option value="30000">30s</option>
+                </select>
+            </div>
+        </div>
     </div>
 
     <script src="solver.js"></script>
