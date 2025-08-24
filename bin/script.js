@@ -284,14 +284,7 @@ scrambleButton.addEventListener('click', () => {
 });
 
 resetButton.addEventListener('click', () => {
-    if (isRotating) return;
-    moveQueue = [];
-    solutionMoves = [];
-    currentMoveIndex = 0;
-    solutionOutput.textContent = '';
-    pausePlayback();
-    updatePlaybackButtons();
-    createRubiksCube();
+    location.reload();
 });
 
 solveButton.addEventListener('click', () => {
