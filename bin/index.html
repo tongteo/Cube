@@ -9,11 +9,13 @@
     <div class="cube-container"></div>
     <div class="controls-main">
         <input type="text" id="scramble-input" placeholder="Enter scramble or generate one">
-        <button id="scramble-button" disabled>Scramble Cube</button>
+        <button id="scramble-button" disabled>Scramble</button>
+        <button id="reset-button" disabled>Reset Cube</button>
         <button id="solve-button" disabled>Solve</button>
     </div>
     <div id="solution-container">
         <h2>Solution</h2>
+        <p class="note"><b>Note:</b> The 'Solve' button finds a solution, but the animation playback controls (Prev, Play, Next) are currently under development and do not work correctly.</p>
         <div id="solution-output"></div>
         <div class="controls-playback">
             <button id="prev-move-button" disabled>Prev</button>

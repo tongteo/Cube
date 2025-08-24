@@ -1,8 +1,10 @@
 const solveButton = document.getElementById('solve-button');
 const scrambleButton = document.getElementById('scramble-button');
+const resetButton = document.getElementById('reset-button');
 const scrambleInput = document.getElementById('scramble-input');
 const solutionOutput = document.getElementById('solution-output');
 const nextMoveButton = document.getElementById('next-move-button');
+const prevMoveButton = document.getElementById('prev-move-button');
 const playPauseButton = document.getElementById('play-pause-button');
 
 let scene, camera, renderer, controls, cubeGroup;
@@ -13,8 +15,6 @@ const ROTATION_SPEED = 0.15;
 // State
 let isRotating = false;
 let moveQueue = [];
-let solutionQueue = [];
-let currentSolutionStep = 0;
 
 // Colors (User requested scheme)
 const COLORS = {
@@ -52,6 +52,9 @@ function init() {
 }
 
 function createRubiksCube() {
+    if (cubeGroup) {
+        scene.remove(cubeGroup);
+    }
     cubeGroup = new THREE.Group();
     const cubieGeometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
 
@@ -80,13 +83,39 @@ function createRubiksCube() {
 }
 
 function parseMoves(moveString) {
-    const moves = moveString.trim().split(/\s+/);
-    return moves.map(move => {
-        let face = move.charAt(0).toUpperCase();
-        let isPrime = move.includes("'");
-        let isDouble = move.includes("2");
-        return { face, isPrime, isDouble };
+    const individualMoves = moveString.trim().split(/\s+/);
+    const flatQueue = [];
+
+    individualMoves.forEach(move => {
+        if (!move) return;
+
+        const base = move.charAt(0);
+        const isPrime = move.includes("'");
+        const isDouble = move.includes("2");
+        const moveCount = isDouble ? 2 : 1;
+
+        for (let i = 0; i < moveCount; i++) {
+            let simpleMoves = [];
+            switch (base) {
+                case 'r': simpleMoves.push({ face: 'R' }, { face: 'M', isPrime: true }); break;
+                case 'l': simpleMoves.push({ face: 'L' }, { face: 'M' }); break;
+                case 'u': simpleMoves.push({ face: 'U' }, { face: 'E', isPrime: true }); break;
+                case 'd': simpleMoves.push({ face: 'D' }, { face: 'E' }); break;
+                case 'f': simpleMoves.push({ face: 'F' }, { face: 'S' }); break;
+                case 'b': simpleMoves.push({ face: 'B' }, { face: 'S', isPrime: true }); break;
+                case 'x': simpleMoves.push({ face: 'R' }, { face: 'M', isPrime: true }, { face: 'L', isPrime: true }); break;
+                case 'y': simpleMoves.push({ face: 'U' }, { face: 'E', isPrime: true }, { face: 'D', isPrime: true }); break;
+                case 'z': simpleMoves.push({ face: 'F' }, { face: 'S' }, { face: 'B', isPrime: true }); break;
+                default: simpleMoves.push({ face: base }); break;
+            }
+
+            if (isPrime) {
+                simpleMoves.forEach(m => m.isPrime = !m.isPrime);
+            }
+            flatQueue.push(...simpleMoves);
+        }
     });
+    return flatQueue;
 }
 
 function addToMoveQueue(moves) {
@@ -103,16 +132,8 @@ function processMoveQueue() {
     }
     isRotating = true;
     const move = moveQueue.shift();
-    const { face, isPrime, isDouble } = move;
-
-    const angle = (Math.PI / 2) * (isPrime ? -1 : 1);
-    rotateFace(face, angle, () => {
-        if (isDouble) {
-            rotateFace(face, angle, processMoveQueue);
-        } else {
-            processMoveQueue();
-        }
-    });
+    const angle = (Math.PI / 2) * (move.isPrime ? -1 : 1);
+    rotateFace(move.face, angle, processMoveQueue);
 }
 
 function rotateFace(face, angle, callback) {
@@ -127,6 +148,9 @@ function rotateFace(face, angle, callback) {
         case 'R': axis.set(-1, 0, 0); cubiesToRotate.push(...cubeGroup.children.filter(c => c.position.x > planeConstant)); break;
         case 'F': axis.set(0, 0, -1); cubiesToRotate.push(...cubeGroup.children.filter(c => c.position.z > planeConstant)); break;
         case 'B': axis.set(0, 0, 1); cubiesToRotate.push(...cubeGroup.children.filter(c => c.position.z < -planeConstant)); break;
+        case 'M': axis.set(1, 0, 0); cubiesToRotate.push(...cubeGroup.children.filter(c => Math.abs(c.position.x) < 0.1)); break;
+        case 'E': axis.set(0, 1, 0); cubiesToRotate.push(...cubeGroup.children.filter(c => Math.abs(c.position.y) < 0.1)); break;
+        case 'S': axis.set(0, 0, -1); cubiesToRotate.push(...cubeGroup.children.filter(c => Math.abs(c.position.z) < 0.1)); break;
         default: callback(); return;
     }
 
@@ -141,14 +165,9 @@ function rotateFace(face, angle, callback) {
         currentAngle += angleToRotate;
 
         if (Math.abs(currentAngle) >= Math.abs(angle)) {
-            // Snap to the final angle to avoid floating point errors
             pivot.rotateOnWorldAxis(axis, angle - currentAngle);
             pivot.updateMatrixWorld();
-
-            cubiesToRotate.forEach(cubie => {
-                cubeGroup.attach(cubie); // This is the correct way to re-parent
-            });
-
+            cubiesToRotate.forEach(cubie => { cubeGroup.attach(cubie); });
             scene.remove(pivot);
             callback();
         } else {
@@ -159,54 +178,86 @@ function rotateFace(face, angle, callback) {
 }
 
 function getCubeStateString() {
-    // THIS IS A COMPLEX FUNCTION TO BE IMPLEMENTED
-    // It needs to read the colors of all 54 stickers and format them
-    // into the string that the C solver expects.
-    // For now, we'll use a placeholder.
-    console.warn("getCubeStateString() is not implemented. Using placeholder scramble.");
-    return scrambleInput.value || "R U R' U' F' U F"; // Return input or a default
+    const colorMap = {
+        ['00ff00']: '0', ['ffa500']: '1', ['0000ff']: '2', ['ff0000']: '3', ['ffff00']: '4', ['ffffff']: '5'
+    };
+    let stateString = '';
+    const faces = [
+        { name: 'F', axis: 'z', dir: 1 }, { name: 'R', axis: 'x', dir: 1 }, { name: 'B', axis: 'z', dir: -1 },
+        { name: 'L', axis: 'x', dir: -1 }, { name: 'U', axis: 'y', dir: 1 }, { name: 'D', axis: 'y', dir: -1 },
+    ];
+    const raycaster = new THREE.Raycaster();
+    const offset = CUBIE_SIZE + CUBIE_SPACING;
+
+    for (const face of faces) {
+        let faceStickers = Array(9).fill('?');
+        for (let v_idx = 0; v_idx < 3; v_idx++) {
+            for (let u_idx = 0; u_idx < 3; u_idx++) {
+                const u = u_idx - 1, v = 1 - v_idx;
+                const origin = new THREE.Vector3();
+                origin[face.axis] = face.dir * offset * 1.5;
+                if (face.name === 'F') { origin.x = u * offset; origin.y = v * offset; }
+                if (face.name === 'B') { origin.x = -u * offset; origin.y = v * offset; }
+                if (face.name === 'R') { origin.z = -u * offset; origin.y = v * offset; }
+                if (face.name === 'L') { origin.z = u * offset; origin.y = v * offset; }
+                if (face.name === 'U') { origin.x = u * offset; origin.z = -v * offset; }
+                if (face.name === 'D') { origin.x = u * offset; origin.z = v * offset; }
+                const direction = new THREE.Vector3();
+                direction[face.axis] = -face.dir;
+                raycaster.set(origin, direction);
+                const intersects = raycaster.intersectObjects(cubeGroup.children);
+                if (intersects.length > 0) {
+                    const colorHex = intersects[0].object.material[intersects[0].face.materialIndex].color.getHexString();
+                    faceStickers[v_idx * 3 + u_idx] = colorMap[colorHex] || '?';
+                }
+            }
+        }
+        stateString += faceStickers.join('');
+    }
+    return stateString;
 }
 
 // --- Event Listeners ---
 scrambleButton.addEventListener('click', () => {
-    const scrambleText = scrambleInput.value;
-    if (scrambleText && !isRotating) {
-        const moves = parseMoves(scrambleText);
-        addToMoveQueue(moves);
-    }
+    if (isRotating) return;
+    const moves = parseMoves(scrambleInput.value);
+    addToMoveQueue(moves);
+});
+
+resetButton.addEventListener('click', () => {
+    if (isRotating) return;
+    // Clear any ongoing animations and state
+    moveQueue = [];
+    solutionOutput.textContent = '';
+    // Recreate the cube in its solved state
+    createRubiksCube();
 });
 
 solveButton.addEventListener('click', () => {
     if (isRotating) return;
-    const stateString = getCubeStateString();
-    solutionOutput.textContent = "Solving...";
-
-    // Defer execution to allow UI to update
+    solutionOutput.textContent = "Reading cube state...";
     setTimeout(() => {
-        const solution = Module.ccall(
-            'solve_cube_wasm',
-            'string',
-            ['string'],
-            [stateString]
-        );
-        solutionOutput.textContent = solution;
-        solutionQueue = parseMoves(solution.split('\n').slice(1).join(' ')); // Basic parsing
-        currentSolutionStep = 0;
-        nextMoveButton.disabled = false;
-        playPauseButton.disabled = false;
+        const stateString = getCubeStateString();
+        console.log("State string sent to solver:", stateString);
+        if (stateString.includes('?')) {
+            solutionOutput.textContent = "Error reading cube state."; return;
+        }
+        solutionOutput.textContent = "Solving...";
+        setTimeout(() => {
+            const solution = Module.ccall('solve_from_state_wasm', 'string', ['string'], [stateString]);
+            solutionOutput.textContent = solution;
+            // Playback buttons are disabled as they are not working correctly.
+        }, 50);
     }, 50);
-});
-
-nextMoveButton.addEventListener('click', () => {
-    if (currentSolutionStep < solutionQueue.length && !isRotating) {
-        addToMoveQueue([solutionQueue[currentSolutionStep]]);
-        currentSolutionStep++;
-    }
 });
 
 // --- Init ---
 Module.onRuntimeInitialized = () => {
-    [solveButton, scrambleButton].forEach(b => b.disabled = false);
+    [solveButton, scrambleButton, resetButton].forEach(b => b.disabled = false);
+    // Explicitly disable playback buttons as they are not functional.
+    prevMoveButton.disabled = true;
+    nextMoveButton.disabled = true;
+    playPauseButton.disabled = true;
     console.log('WASM Module Initialized');
 };
 

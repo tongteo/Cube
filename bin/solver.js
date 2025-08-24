@@ -196,7 +196,7 @@ Module['FS_createPath']("/", "data", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/data/olls.csv", "start": 0, "end": 2995}, {"filename": "/data/plls.csv", "start": 2995, "end": 4354}, {"filename": "/data/patterns.csv", "start": 4354, "end": 4895}, {"filename": "/data/errors.txt", "start": 4895, "end": 4895}], "remote_package_size": 4895, "package_uuid": "4f78c8d1-bceb-4cf8-8c94-bc79ce2a3640"});
+    loadPackage({"files": [{"filename": "/data/olls.csv", "start": 0, "end": 2995}, {"filename": "/data/plls.csv", "start": 2995, "end": 4354}, {"filename": "/data/patterns.csv", "start": 4354, "end": 4895}, {"filename": "/data/errors.txt", "start": 4895, "end": 4895}], "remote_package_size": 4895, "package_uuid": "0d5288a8-9568-4241-8159-8aded8dc1c26"});
 
   })();
 
@@ -4808,7 +4808,10 @@ var _malloc = Module["_malloc"] = createExportWrapper("malloc");
 var _free = Module["_free"] = createExportWrapper("free");
 
 /** @type {function(...*):?} */
-var _solve_cube_wasm = Module["_solve_cube_wasm"] = createExportWrapper("solve_cube_wasm");
+var _solve_scramble_wasm = Module["_solve_scramble_wasm"] = createExportWrapper("solve_scramble_wasm");
+
+/** @type {function(...*):?} */
+var _solve_from_state_wasm = Module["_solve_from_state_wasm"] = createExportWrapper("solve_from_state_wasm");
 
 /** @type {function(...*):?} */
 var ___errno_location = Module["___errno_location"] = createExportWrapper("__errno_location");
