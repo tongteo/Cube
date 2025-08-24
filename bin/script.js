@@ -15,6 +15,10 @@ const ROTATION_SPEED = 0.15;
 // State
 let isRotating = false;
 let moveQueue = [];
+let solutionMoves = [];
+let currentMoveIndex = 0;
+let isPlaying = false;
+let playInterval;
 
 // Colors (User requested scheme)
 const COLORS = {
@@ -128,9 +132,14 @@ function addToMoveQueue(moves) {
 function processMoveQueue() {
     if (moveQueue.length === 0) {
         isRotating = false;
+        updatePlaybackButtons();
+        if (isPlaying && currentMoveIndex === solutionMoves.length) {
+            pausePlayback();
+        }
         return;
     }
     isRotating = true;
+    updatePlaybackButtons();
     const move = moveQueue.shift();
     const angle = (Math.PI / 2) * (move.isPrime ? -1 : 1);
     rotateFace(move.face, angle, processMoveQueue);
@@ -217,6 +226,56 @@ function getCubeStateString() {
     return stateString;
 }
 
+function updatePlaybackButtons() {
+    prevMoveButton.disabled = isRotating || currentMoveIndex === 0;
+    nextMoveButton.disabled = isRotating || currentMoveIndex === solutionMoves.length;
+    playPauseButton.disabled = isRotating || solutionMoves.length === 0;
+}
+
+function playNextMove() {
+    if (isRotating || currentMoveIndex >= solutionMoves.length) return;
+    const move = solutionMoves[currentMoveIndex];
+    addToMoveQueue(parseMoves(move));
+    currentMoveIndex++;
+    updatePlaybackButtons();
+}
+
+function playPrevMove() {
+    if (isRotating || currentMoveIndex <= 0) return;
+    currentMoveIndex--;
+    const move = solutionMoves[currentMoveIndex];
+    let inverseMove = move;
+    if (move.includes("'")) {
+        inverseMove = move.replace("'", "");
+    } else if (move.includes("2")) {
+        // Inverse of a double move is the same double move
+    } else {
+        inverseMove = move + "'";
+    }
+    addToMoveQueue(parseMoves(inverseMove));
+    updatePlaybackButtons();
+}
+
+function startPlayback() {
+    isPlaying = true;
+    playPauseButton.textContent = 'Pause';
+    playInterval = setInterval(() => {
+        if (!isRotating) {
+            if (currentMoveIndex < solutionMoves.length) {
+                playNextMove();
+            } else {
+                pausePlayback();
+            }
+        }
+    }, 800); // Adjust delay as needed
+}
+
+function pausePlayback() {
+    isPlaying = false;
+    playPauseButton.textContent = 'Play';
+    clearInterval(playInterval);
+}
+
 // --- Event Listeners ---
 scrambleButton.addEventListener('click', () => {
     if (isRotating) return;
@@ -226,10 +285,12 @@ scrambleButton.addEventListener('click', () => {
 
 resetButton.addEventListener('click', () => {
     if (isRotating) return;
-    // Clear any ongoing animations and state
     moveQueue = [];
+    solutionMoves = [];
+    currentMoveIndex = 0;
     solutionOutput.textContent = '';
-    // Recreate the cube in its solved state
+    pausePlayback();
+    updatePlaybackButtons();
     createRubiksCube();
 });
 
@@ -246,18 +307,35 @@ solveButton.addEventListener('click', () => {
         setTimeout(() => {
             const solution = Module.ccall('solve_from_state_wasm', 'string', ['string'], [stateString]);
             solutionOutput.textContent = solution;
-            // Playback buttons are disabled as they are not working correctly.
+
+            const cleanedSolution = solution.replace(/\((.*?)\)/g, ' $1 ');
+            const parts = cleanedSolution.split(/\s+/);
+            const validMoveRegex = /^[RLUDFBMESrludfbxyz](2'|2|')?$/;
+            solutionMoves = parts.filter(part => validMoveRegex.test(part));
+
+            currentMoveIndex = 0;
+            isPlaying = false;
+            updatePlaybackButtons();
         }, 50);
     }, 50);
 });
 
+nextMoveButton.addEventListener('click', playNextMove);
+prevMoveButton.addEventListener('click', playPrevMove);
+
+playPauseButton.addEventListener('click', () => {
+    if (isPlaying) {
+        pausePlayback();
+    } else {
+        startPlayback();
+    }
+});
+
+
 // --- Init ---
 Module.onRuntimeInitialized = () => {
     [solveButton, scrambleButton, resetButton].forEach(b => b.disabled = false);
-    // Explicitly disable playback buttons as they are not functional.
-    prevMoveButton.disabled = true;
-    nextMoveButton.disabled = true;
-    playPauseButton.disabled = true;
+    updatePlaybackButtons();
     console.log('WASM Module Initialized');
 };
 
