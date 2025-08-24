@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cube Solver</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <h1>Cube Solver</h1>
+    <div class="cube-container"></div>
+    <div class="controls-main">
+        <input type="text" id="scramble-input" placeholder="Enter scramble or generate one">
+        <button id="scramble-button" disabled>Scramble Cube</button>
+        <button id="solve-button" disabled>Solve</button>
+    </div>
+    <div id="solution-container">
+        <h2>Solution</h2>
+        <div id="solution-output"></div>
+        <div class="controls-playback">
+            <button id="prev-move-button" disabled>Prev</button>
+            <button id="play-pause-button" disabled>Play</button>
+            <button id="next-move-button" disabled>Next</button>
+        </div>
+    </div>
+
+    <script src="solver.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
